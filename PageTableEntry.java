@@ -6,7 +6,7 @@ import osp.Threads.*;
 import osp.Devices.*;
 import osp.Utilities.*;
 import osp.IFLModules.*;
-/**
+/*
    The PageTableEntry object contains information about a specific virtual
    page in memory, including the page frame in which it resides.
    
@@ -16,7 +16,7 @@ import osp.IFLModules.*;
 
 public class PageTableEntry extends IflPageTableEntry
 {
-    /**
+    /*
        The constructor. Must call
 
        	   super(ownerPageTable,pageNumber);
@@ -27,11 +27,11 @@ public class PageTableEntry extends IflPageTableEntry
     */
     public PageTableEntry(PageTable ownerPageTable, int pageNumber)
     {
-        // your code goes here
+        super(ownerPageTable,pageNumber);
 
     }
 
-    /**
+    /*
        This method increases the lock count on the page by one. 
 
 	The method must FIRST increment lockCount, THEN  
@@ -47,7 +47,38 @@ public class PageTableEntry extends IflPageTableEntry
      */
     public int do_lock(IORB iorb)
     {
-        // your code goes here
+
+      ThreadCB iorbThread = iorb.getThread();
+        
+      if(!this.isValid()){
+
+        ThreadCB pagefaultThread = this.getValidatingThread(); //Thread that caused pagefault
+
+        if(pagefaultThread == null){
+
+            //When page in invalid, initiate pagefault
+            if(PageFaultHandler.handlePageFault(iorbThread,MemoryLock,this) == FAILURE)
+                return FAILURE;
+        }
+
+        else{
+
+            if(pagefaultThread != iorbThread){
+
+                iorbThread.suspend(this); //wait until the page becomes valid
+                if(iorbThread.getStatus() == ThreadKill)
+                    return FAILURE;
+            }
+        }   
+
+      }
+      /*Page is valid*/
+
+      //Incrment lock count on the frame associated with the page
+      FrameTableEntry frame = this.getFrame();
+      frame.incrementLockCount();
+
+      return SUCCESS;
 
     }
 
@@ -59,8 +90,13 @@ public class PageTableEntry extends IflPageTableEntry
     */
     public void do_unlock()
     {
-        // your code goes here
+        
+        FrameTableEntry frame = this.getFrame();
 
+        //Decrment lock count on the frame associated with the page
+        if(frame.getLockCount() > 0)
+            frame.decrementLockCount();
+        
     }
 
 

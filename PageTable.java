@@ -1,5 +1,5 @@
 package osp.Memory;
-/**
+/*
     The PageTable class represents the page table for a given task.
     A PageTable consists of an array of PageTableEntry objects.  This
     page table is of the non-inverted type.
@@ -14,7 +14,7 @@ import osp.Hardware.*;
 
 public class PageTable extends IflPageTable
 {
-    /** 
+    /*
 	The page table constructor. Must call
 	
 	    super(ownerTask)
@@ -25,11 +25,19 @@ public class PageTable extends IflPageTable
     */
     public PageTable(TaskCB ownerTask)
     {
-        // your code goes here
+        super(ownerTask);
+
+        //Create page table
+        maxPages = MMU.getPageAddressBits();
+        pages = new PageTableEntry[maxPages];
+
+        //Initialize page table
+        for(int i=0; i<maxPages; i++) /*not sure yet about page id*/
+          pages[i] = new PageTableEntry(this, i);
 
     }
 
-    /**
+    /*
        Frees up main memory occupied by the task.
        Then unreserves the freed pages, if necessary.
 
@@ -37,7 +45,7 @@ public class PageTable extends IflPageTable
     */
     public void do_deallocateMemory()
     {
-        // your code goes here
+        InterruptVector.setPage()
 
     }
 
