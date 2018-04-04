@@ -28,7 +28,7 @@ public class PageTable extends IflPageTable
         super(ownerTask);
 
         //Create page table
-        maxPages = MMU.getPageAddressBits();
+        maxPages = (int)Math.pow(2,MMU.getPageAddressBits());
         pages = new PageTableEntry[maxPages];
 
         //Initialize page table
@@ -44,8 +44,34 @@ public class PageTable extends IflPageTable
        @OSPProject Memory
     */
     public void do_deallocateMemory()
-    {
-        InterruptVector.setPage()
+    {   
+        //Get size of the page table
+        int frameTableSize = MMU.getFrameTableSize();
+
+        //Get the terminating task
+        TaskCB task = this.getTask();
+
+        for(int i=0; i<frameTableSize; i++){
+
+            FrameTableEntry frame = MMU.getFrame(i);
+            PageTableEntry page = frame.getPage();
+
+            //Deallocate the pages
+            if(page != null && page.getTask() == task){
+
+                frame.setPage(null); //nullify the page field
+
+                if(frame.isDirty())
+                    frame.setDirty(false); //clean if page is dirty
+
+                frame.setReferenced(false); //unset the refernce bit
+
+                if(frame.getReserved() == task)
+                    frame.setUnreserved(task); //Unreserve the frame if it belongs to the task
+
+            }
+
+        }
 
     }
 
