@@ -8,7 +8,7 @@ import osp.Utilities.*;
 import osp.Hardware.*;
 import osp.Interrupts.*;
 
-/**
+/*
     The MMU class contains the student code that performs the work of
     handling a memory reference.  It is responsible for calling the
     interrupt handler if a page fault is required.
@@ -17,19 +17,24 @@ import osp.Interrupts.*;
 */
 public class MMU extends IflMMU
 {
-    /** 
+    /* 
         This method is called once before the simulation starts. 
 	Can be used to initialize the frame table and other static variables.
 
         @OSPProject Memory
     */
     public static void init()
-    {
-        // your code goes here
+    {   
+        //Initialize the frame table
+        for(int i=0; i<MMU.getFrameTableSize(); i++)
+            MMU.setFrame(i, new getFrameTableEntry(i));
+
+        //Initialize page fault handler
+        PageFaultHandler.init();   /*NOT SURE IF WE NEED THIS*/
 
     }
 
-    /**
+    /*
        This method handlies memory references. The method must 
        calculate, which memory page contains the memoryAddress,
        determine, whether the page is valid, start page fault 
@@ -51,7 +56,67 @@ public class MMU extends IflMMU
     static public PageTableEntry do_refer(int memoryAddress,
 					  int referenceType, ThreadCB thread)
     {
-        // your code goes here
+        //Determine the referenced page
+        int addressBits = MMU.getVirtualAddressBits(); //Get the number of bits in the logical address
+        int pageBits = MMU.getPageAddressBits(); //Get the number of bits in the page number portion of address
+        int offset = addressBits - pageBits; //Get the number of bits in offset of a page
+        int pageSize = (int)Math.pow(2,offset); //Get the page size
+        int pageNumber = memoryAddress/pageSize; 
+        PageTableEntry page = MMU.getPTBR().pages[pageNumber]; //The refernced page
+
+        //Page is valid
+        /*if(page.isValid()){
+
+            FrameTableEntry frame = page.getFrame();
+
+            //Set the refernced and dirty bits
+            frame.setReferenced(true);
+            if(referenceType == MemoryWrite)
+                frame.setDirty(true);
+            else
+                frame.setDirty(false);
+
+            return page;
+        }*/
+
+        //Page is invalid
+        if(!page.isValid()){
+
+            ThreadCB validateThread = page.getValidatingThread();
+
+            /*CASE 1*/
+            if(validateThread != null){
+                if(validateThread != thread && thread != null){
+
+                    thread.suspend(page);
+                    if(thread.getStatus() == ThreadKill) //If the thread was destroyed
+                        return page;
+                }
+            }
+            /*CASE 2*/
+            else{
+
+                InterruptVector.setPage(page);
+                InterruptVector.setReferenceType(referenceType);
+                InterruptVector.setThread(thread);
+                CPU.interrupt(PageFault);
+
+                if(thread.getStatus() == ThreadKill) //If the thread was destroyed
+                        return page;
+            }
+        }
+
+        FrameTableEntry frame = page.getFrame();
+
+        //Set the refernced and dirty bits
+        frame.setReferenced(true);
+        if(referenceType == MemoryWrite)
+            frame.setDirty(true);
+        else
+            frame.setDirty(false);
+
+        +return page;
+
 
     }
 

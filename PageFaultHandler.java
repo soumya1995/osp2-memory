@@ -10,7 +10,7 @@ import osp.Interrupts.*;
 import osp.Utilities.*;
 import osp.IFLModules.*;
 
-/**
+/*
     The page fault handler is responsible for handling a page
     fault.  If a swap in or swap out operation is required, the page fault
     handler must request the operation.
@@ -19,7 +19,7 @@ import osp.IFLModules.*;
 */
 public class PageFaultHandler extends IflPageFaultHandler
 {
-    /**
+    /*
         This method handles a page fault. 
 
         It must check and return if the page is valid, 
