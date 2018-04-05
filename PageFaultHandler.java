@@ -75,9 +75,31 @@ public class PageFaultHandler extends IflPageFaultHandler
     public static int do_handlePageFault(ThreadCB thread, 
 					 int referenceType,
 					 PageTableEntry page)
-    {
-        // your code goes here
+    {   
+        //Page is valid
+        if(page.isValid())
+            return FAILURE;
 
+        //Get size of the frame table
+        int frameTableSize = MMU.getFrameTableSize();
+
+        for(int i=0; i<frameTableSize; i++){
+
+            FrameTableEntry frame = MMU.getFrame(i);
+            //A frame which is unlocked and not reserved is found; call swapPage()
+            if(frame.getLockCount() == 0 && frame.isReserved() == false){
+                swapPage();
+                break;
+            }
+        }
+        //No frame that is unlocked or not reserved is found
+        return NotEnoughMemory;
+
+    }
+
+    public static int swapPage(){
+
+        
     }
 
 

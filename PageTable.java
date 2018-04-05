@@ -45,7 +45,7 @@ public class PageTable extends IflPageTable
     */
     public void do_deallocateMemory()
     {   
-        //Get size of the page table
+        //Get size of the frame table
         int frameTableSize = MMU.getFrameTableSize();
 
         //Get the terminating task

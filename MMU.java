@@ -102,7 +102,7 @@ public class MMU extends IflMMU
                 CPU.interrupt(PageFault);
 
                 if(thread.getStatus() == ThreadKill) //If the thread was destroyed
-                        return page;
+                    return page;
             }
         }
 
@@ -115,7 +115,7 @@ public class MMU extends IflMMU
         else
             frame.setDirty(false);
 
-        +return page;
+        return page;
 
 
     }
