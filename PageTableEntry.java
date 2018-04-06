@@ -25,10 +25,14 @@ public class PageTableEntry extends IflPageTableEntry
 
        @OSPProject Memory
     */
+
+    private long timeStamp;
+
+
     public PageTableEntry(PageTable ownerPageTable, int pageNumber)
     {
         super(ownerPageTable,pageNumber);
-
+        this.setTimeStamp(HClock.get());
     }
 
     /*
@@ -97,6 +101,16 @@ public class PageTableEntry extends IflPageTableEntry
         if(frame.getLockCount() > 0)
             frame.decrementLockCount();
         
+    }
+
+    public long getTimeStamp(){
+
+        return timeStamp;
+    }
+
+    public void setTimeStamp(long time){
+
+        this.timeStamp = time;
     }
 
 

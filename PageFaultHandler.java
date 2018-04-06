@@ -80,26 +80,133 @@ public class PageFaultHandler extends IflPageFaultHandler
         if(page.isValid())
             return FAILURE;
 
+        if(page == null)
+            return FAILURE;
+
         //Get size of the frame table
         int frameTableSize = MMU.getFrameTableSize();
 
+        int frameCount = 0;
         for(int i=0; i<frameTableSize; i++){
 
-            FrameTableEntry frame = MMU.getFrame(i);
-            //A frame which is unlocked and not reserved is found; call swapPage()
-            if(frame.getLockCount() == 0 && frame.isReserved() == false){
-                swapPage();
-                break;
-            }
+            FrameTableEntry frame = MMU.getFrame(i); 
+            if(frame.getLockCount() != 0 || frame.isReserved() == true)
+                frameCount++;          
         }
-        //No frame that is unlocked or not reserved is found
-        return NotEnoughMemory;
+        //No frame is available
+        if(frameTableSize == frameCount)
+            return NotEnoughMemory;
+
+        //Create event object
+        SystemEvent event = new SystemEvent("PageFault");
+        thread.suspend(event);
+
+        //Set the validating thread of the page
+        page.setValidatingThread(thread);
+
+        //Find a suitable frame for the page
+        FrameTableEntry frame = findFrameLRU(page);
+
+        //Reserve the frame for that task
+        frame.setReserved(thread.getTask());
+
+        if(frame.getPage() != null){
+
+            if(frame.isDirty() == true)
+                //Perform swap out
+                OpenFile swapFileOut = (frame.getPage()).getTask().getSwapFile();
+                swapFileOut.write(frame.getPage().getID(), frame.getPage(), thread);
+
+                if(thread.getStatus() == ThreadKill){ //If the thread was destroyed
+
+                    event.notifyThreads();
+                    page.notifyThreads();
+                    page.setValidatingThread(null);
+                    ThreadCB.dispatch();
+                    return FAILURE;
+                }
+
+            frame.setPage(null); //free the frame
+        }
+
+        //Set page's frame attributes
+        frame.setDirty(false);
+        frame.setReferenced(false);
+
+        //Set the page to the frame and the validating thread of the page
+        page.setFrame(frame);
+        
+        //Perform swap in
+        OpenFile swapFile = page.getTask().getSwapFile();
+        swapFile.read(page.getID(), page, thread);
+
+        if(thread.getStatus() == ThreadKill){ //If the thread was destroyed
+
+            if(frame.getPage() != null){/****************/
+
+                if(frame.getPage().getTask() == thread.getTask())
+                    frame.setPage(null);
+
+                page.setValidatingThread(null);
+                page.setFrame(null);
+                page.notifyThreads();
+                event.notifyThreads();
+                ThreadCB.dispatch();
+                return FAILURE;
+            }
+
+        }
+
+        frame.setPage(page);
+        page.setValid(true);
+
+        //Set the refernced and dirty bits
+        frame.setReferenced(true);
+        if(referenceType == MemoryWrite)
+            frame.setDirty(true);
+        else
+            frame.setDirty(false);
+
+        frame.setUnreserved(thread.getTask());
+        page.notifyThreads();
+        event.notifyThreads();
+        page.setValidatingThread(null);
+        ThreadCB.dispatch();
+        return SUCCESS;
 
     }
 
-    public static int swapPage(){
+    public static FrameTableEntry findFrameLRU(PageTableEntry page){
 
-        
+        //Get size of the frame table
+        int frameTableSize = MMU.getFrameTableSize();
+
+        //If a frame is empty return it
+        for(int i=0; i<frameTableSize; i++){
+
+            FrameTableEntry frame = MMU.getFrame(i); 
+            if(frame.getPage() == null)
+                return frame;
+        }
+
+        //If a frame is not empty find suitable frame according to LRU; the page least recently referenced
+        long maxTimeElapsed = 0;
+        FrameTableEntry replaceFrame = null;
+        for(int i=0; i<frameTableSize; i++){
+
+            FrameTableEntry frame = MMU.getFrame(i);
+            PageTableEntry page = frame.getPage();
+            long timeElapsed = Math.abs(HClock.get()-page.getTimeStamp());
+
+            if(timeElapsed > maxTimeElapsed){
+
+                replaceFrame = frame;
+                maxTimeElapsed = timeElapsed;
+            }
+        }
+
+        return replaceFrame;
+
     }
 
 
