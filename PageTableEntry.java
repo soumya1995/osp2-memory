@@ -70,7 +70,7 @@ public class PageTableEntry extends IflPageTableEntry
             if(pagefaultThread != iorbThread){
 
                 iorbThread.suspend(this); //wait until the page becomes valid
-                if(iorbThread.getStatus() == ThreadKill)
+                if(iorbThread.getStatus() == ThreadKill )
                     return FAILURE;
             }
         }   

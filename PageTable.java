@@ -28,7 +28,7 @@ public class PageTable extends IflPageTable
         super(ownerTask);
 
         //Create page table
-        maxPages = (int)Math.pow(2,MMU.getPageAddressBits());
+        int maxPages = (int)Math.pow(2,MMU.getPageAddressBits());
         pages = new PageTableEntry[maxPages];
 
         //Initialize page table

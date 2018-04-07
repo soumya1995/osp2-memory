@@ -105,33 +105,42 @@ public class PageFaultHandler extends IflPageFaultHandler
         page.setValidatingThread(thread);
 
         //Find a suitable frame for the page
-        FrameTableEntry frame = findFrameLRU(page);
+        FrameTableEntry frame = findFrameLRU();
 
         //Reserve the frame for that task
         frame.setReserved(thread.getTask());
 
         if(frame.getPage() != null){
-
-            if(frame.isDirty() == true)
+            PageTableEntry prevPage = frame.getPage();
+            if(frame.isDirty() == true){
                 //Perform swap out
-                OpenFile swapFileOut = (frame.getPage()).getTask().getSwapFile();
+                OpenFile swapFileOut = frame.getPage().getTask().getSwapFile();
                 swapFileOut.write(frame.getPage().getID(), frame.getPage(), thread);
+            
 
                 if(thread.getStatus() == ThreadKill){ //If the thread was destroyed
-
+                    
                     event.notifyThreads();
                     page.notifyThreads();
-                    page.setValidatingThread(null);
+                    //page.setValidatingThread(null);
                     ThreadCB.dispatch();
                     return FAILURE;
                 }
 
+                frame.setDirty(false);
+
+            }
+
             frame.setPage(null); //free the frame
+            frame.setReferenced(false);
+
+            prevPage.setValid(false);
+            prevPage.setFrame(null);
         }
 
         //Set page's frame attributes
-        frame.setDirty(false);
-        frame.setReferenced(false);
+        /*frame.setDirty(false);
+        frame.setReferenced(false);*/
 
         //Set the page to the frame and the validating thread of the page
         page.setFrame(frame);
@@ -146,7 +155,7 @@ public class PageFaultHandler extends IflPageFaultHandler
 
                 if(frame.getPage().getTask() == thread.getTask())
                     frame.setPage(null);
-
+            
                 page.setValidatingThread(null);
                 page.setFrame(null);
                 page.notifyThreads();
@@ -161,13 +170,13 @@ public class PageFaultHandler extends IflPageFaultHandler
         page.setValid(true);
 
         //Set the refernced and dirty bits
+
         frame.setReferenced(true);
         if(referenceType == MemoryWrite)
             frame.setDirty(true);
-        else
-            frame.setDirty(false);
-
-        frame.setUnreserved(thread.getTask());
+        
+        if(frame.getReserved() == thread.getTask())
+            frame.setUnreserved(thread.getTask());
         page.notifyThreads();
         event.notifyThreads();
         page.setValidatingThread(null);
@@ -176,7 +185,7 @@ public class PageFaultHandler extends IflPageFaultHandler
 
     }
 
-    public static FrameTableEntry findFrameLRU(PageTableEntry page){
+    public static FrameTableEntry findFrameLRU(){
 
         //Get size of the frame table
         int frameTableSize = MMU.getFrameTableSize();
@@ -185,7 +194,7 @@ public class PageFaultHandler extends IflPageFaultHandler
         for(int i=0; i<frameTableSize; i++){
 
             FrameTableEntry frame = MMU.getFrame(i); 
-            if(frame.getPage() == null)
+            if(frame.getPage() == null && frame.getReserved() == null)
                 return frame;
         }
 
@@ -198,13 +207,14 @@ public class PageFaultHandler extends IflPageFaultHandler
             PageTableEntry page = frame.getPage();
             long timeElapsed = Math.abs(HClock.get()-page.getTimeStamp());
 
-            if(timeElapsed > maxTimeElapsed){
+            if(timeElapsed > maxTimeElapsed && frame.getReserved() == null && frame.getLockCount() == 0){
 
                 replaceFrame = frame;
                 maxTimeElapsed = timeElapsed;
             }
         }
-
+        if(replaceFrame.getReserved() != null)
+            System.out.println("resuic");
         return replaceFrame;
 
     }

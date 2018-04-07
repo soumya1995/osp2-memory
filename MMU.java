@@ -27,10 +27,10 @@ public class MMU extends IflMMU
     {   
         //Initialize the frame table
         for(int i=0; i<MMU.getFrameTableSize(); i++)
-            MMU.setFrame(i, new getFrameTableEntry(i));
+            MMU.setFrame(i, new FrameTableEntry(i));
 
         //Initialize page fault handler
-        PageFaultHandler.init();   /*NOT SURE IF WE NEED THIS*/
+        //PageFaultHandler.init();   /*NOT SURE IF WE NEED THIS*/
 
     }
 
@@ -62,7 +62,7 @@ public class MMU extends IflMMU
         int offset = addressBits - pageBits; //Get the number of bits in offset of a page
         int pageSize = (int)Math.pow(2,offset); //Get the page size
         int pageNumber = memoryAddress/pageSize; 
-        PageTableEntry page = MMU.getPTBR().pages[pageNumber]; //The refernced page
+        PageTableEntry page = thread.getTask().getPageTable().pages[pageNumber]; //The referenced page
 
         //Page is valid
         /*if(page.isValid()){
@@ -78,7 +78,8 @@ public class MMU extends IflMMU
 
             return page;
         }*/
-
+        if(page == null)
+            System.out.println("yobbcbic");
         //Page is invalid
         if(!page.isValid()){
 
@@ -86,11 +87,13 @@ public class MMU extends IflMMU
 
             /*CASE 1*/
             if(validateThread != null){
-                if(validateThread != thread && thread != null){
-
+                if(validateThread != thread ){//
+                    //System.out.println("case 1");
                     thread.suspend(page);
-                    if(thread.getStatus() == ThreadKill) //If the thread was destroyed
+                    if(thread.getStatus() == ThreadKill){ //If the thread was destroyed
+                        page.setTimeStamp(HClock.get());
                         return page;
+                    }
                 }
             }
             /*CASE 2*/
@@ -100,20 +103,26 @@ public class MMU extends IflMMU
                 InterruptVector.setReferenceType(referenceType);
                 InterruptVector.setThread(thread);
                 CPU.interrupt(PageFault);
-
-                if(thread.getStatus() == ThreadKill) //If the thread was destroyed
+                //System.out.println("case 2");
+                if(thread.getStatus() == ThreadKill){ //If the thread was destroyed
+                    page.setTimeStamp(HClock.get());
                     return page;
+                }
             }
         }
 
+        //page.setValid(true);
         FrameTableEntry frame = page.getFrame();
 
-        //Set the refernced and dirty bits
-        frame.setReferenced(true);
-        if(referenceType == MemoryWrite)
-            frame.setDirty(true);
-        else
-            frame.setDirty(false);
+        if(thread.getStatus() != ThreadKill){
+            //Set the refernced and dirty bits
+            frame.setReferenced(true);
+            if(referenceType == MemoryWrite)
+                frame.setDirty(true);
+        }
+
+        page.setTimeStamp(HClock.get());
+
 
         return page;
 
