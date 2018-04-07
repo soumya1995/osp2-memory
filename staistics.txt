@@ -1,0 +1,15 @@
+LRU:
+
+CPU Utilization: 61.7 %
+Average normalized service time per thread: 0.053459797
+Average service time per thread: 39782.754
+Number of pages swaped in = 467
+Number of pages swaped out = 233
+
+Simple Replacement:
+
+CPU Utilization: 71.232%
+Average service time per thread: 19644.818
+Average normalized service time per thread: 0.06874664
+Number of pages swaped in = 650
+Number of pages swapped out = 102
